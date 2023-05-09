@@ -1,4 +1,5 @@
 ﻿using RimWorld.Planet;
+using System.Collections.Generic;
 using UnityEngine;
 using Verse;
 
@@ -10,40 +11,21 @@ namespace ControlGroups
 
         public override void ExposeData()
         {
-			/*
-			Scribe_Collections.Look(ref ControlGroups.groups, "groups", LookMode.Value, LookMode.TargetInfo);
+            Log.Message("[ControlGroups] Expose Data");
 
+            foreach (KeyValuePair<int, KeyCode> groupKey in ControlGroupsSettings.groupKeys)
+            {
+                if (ControlGroups.groups == null)
+                    ControlGroups.groups = new Dictionary<int, List<Thing>>();
 
-			var group1 = ControlGroups.groups[0];
+                var group = ControlGroups.groups[groupKey.Key];
+                if (group == null)
+                    group = new List<Thing>();
 
+                Scribe_Collections.Look(ref group, "Group" + groupKey.Key, LookMode.Reference);
 
-			if (Scribe.mode == LoadSaveMode.Saving)
-			{
-				foreach (KeyCode keyCode in ControlGroups.groupKeys)
-				{
-					LocalTargetInfo
-					Scribe_Collections.Look(ref ControlGroups.groups, "groups", LookMode.Deep);
-				}
-			}
-
-			Scribe_Collections.Look(ref ControlGroups.groups, "groups", LookMode.Deep);
-
-			if (Scribe.mode == LoadSaveMode.Saving && currentItem != null)
-			{
-				dummyCell = currentItem.Cell;
-				dummyThing = currentItem.Thing;
-			}
-
-			Scribe_Values.Look(ref dummyCell, "current-cell", IntVec3.Invalid, false);
-			Scribe_References.Look(ref dummyThing, "current-thing-ref");
-
-			if (Scribe.mode == LoadSaveMode.PostLoadInit)
-			{
-				if (dummyThing != null)
-					currentItem = new LocalTargetInfo(dummyThing);
-				else
-					currentItem = new LocalTargetInfo(dummyCell);
-			}*/
-		}
+                ControlGroups.groups[groupKey.Key] = group;
+            }
+        }
     }
 }

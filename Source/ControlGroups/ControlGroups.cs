@@ -18,20 +18,7 @@ namespace ControlGroups
     {
         public static ControlGroupsSettings settings;
 
-        public static KeyCode[] groupKeys = {
-            KeyCode.Keypad0,
-            KeyCode.Keypad1,
-            KeyCode.Keypad2,
-            KeyCode.Keypad3,
-            KeyCode.Keypad4,
-            KeyCode.Keypad5,
-            KeyCode.Keypad6,
-            KeyCode.Keypad7,
-            KeyCode.Keypad8,
-            KeyCode.Keypad9,
-        };
-
-        public static Dictionary<KeyCode, List<object>> groups;
+        public static Dictionary<int, List<Thing>> groups;
 
         public ControlGroups(ModContentPack content) : base(content)
         {
@@ -50,27 +37,42 @@ namespace ControlGroups
             return "Control Groups";
         }
 
-        public static KeyCode GroupKeyPressed()
+        public static int GroupKeyPressed()
         {
-            foreach (KeyCode code in groupKeys)
+            foreach (KeyValuePair<int, KeyCode> groupKey in ControlGroupsSettings.groupKeys)
             {
-                if (Input.GetKey(code))
-                {
-                    return code;
-                }
+                if (Input.GetKey(groupKey.Value))
+                    return groupKey.Key;
             }
 
-            return KeyCode.None;
+            return -1;
         }
 
-        public static bool ValidObject(object obj)
+        public static void AddThing(int groupID, object obj)
+        {
+            if (obj == null)
+                return;
+
+            if (!(obj is Thing thing))
+                return;
+
+            if (thing.Destroyed)
+                return;
+
+            if (groups[groupID].Contains(thing))
+                return;
+
+            groups[groupID].Add(thing);
+        }
+
+        public static bool ValidThing(object obj)
         {
             if (obj == null)
             {
                 return false;
             }
 
-            if (obj is Thing thing && thing.Destroyed)
+            if (!(obj is Thing thing) || (thing != null && thing.Destroyed))
             {
                 return false;
             }
@@ -84,7 +86,7 @@ namespace ControlGroups
     {
         static Selector selector;
 
-        static KeyCode currentKeyCode;
+        static int? currentGroup;
 
         // Selection from samples
         static object sample;
@@ -94,7 +96,7 @@ namespace ControlGroups
             var harmony = new Harmony("com.necromunger.selectionmanager");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-            ControlGroups.groups = new Dictionary<KeyCode, List<object>>();
+            ControlGroups.groups = new Dictionary<int, List<Thing>>();
         }
 
         [HarmonyPatch(typeof(Selector), "Select", new Type[] { typeof(object), typeof(bool), typeof(bool) })]
@@ -149,90 +151,66 @@ namespace ControlGroups
             }
         }
 
-        [HarmonyPatch(typeof(Selector), "ClearSelection")]
-        class Patch_Selector_ClearSelection
-        {
-            private static void Postfix(Selector __instance)
-            {
-                // If selection was cleared, reset group selection
-                currentKeyCode = KeyCode.None;
-            }
-        }
-
         [HarmonyPatch(typeof(Game), "UpdatePlay")]
         class Patch_Game_UpdatePlay
         {
             private static void Postfix()
             {
                 if (selector == null)
-                {
                     return;
-                }
 
-                // If user releases button after binding, reset so that they may then select given group
-                if (Input.GetKeyUp(KeyCode.LeftShift) || Input.GetKeyUp(KeyCode.LeftAlt))
-                {
-                    currentKeyCode = KeyCode.None;
-                }
+                // If user presses or releases button after binding, reset so that they may then select given group
+                if (Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyUp(KeyCode.LeftControl) || Input.GetKeyUp(KeyCode.LeftAlt))
+                     currentGroup = null;
 
                 // check if any of the group keys were pressed
-                KeyCode groupKey = ControlGroups.GroupKeyPressed();
-                if (groupKey == KeyCode.None)
-                {
+                int groupID = ControlGroups.GroupKeyPressed();
+                if (groupID < 0)
                     return;
-                }
 
                 // abort if not selecting a new group
-                if (currentKeyCode == groupKey)
-                {
+                if (currentGroup == groupID)
                     return;
-                }
 
-                currentKeyCode = groupKey;
+                currentGroup = groupID;
+
+                var leftControl = Input.GetKey(KeyCode.LeftControl);
+                var leftAlt = Input.GetKey(KeyCode.LeftAlt);
 
                 // Assign currently selected objects to the numpad control group
-                if (Input.GetKey(KeyCode.LeftControl))
+                if (leftControl && selector.SelectedObjects.Count > 0)
                 {
-                    if (selector.SelectedObjects.Count > 0)
-                    {
-                        ControlGroups.groups[groupKey] = new List<object>();
-                        ControlGroups.groups[groupKey].AddRange(selector.SelectedObjects);
+                    ControlGroups.groups[groupID] = new List<Thing>();
 
-                        if (ControlGroups.settings.showMessages)
-                        {
-                            Messages.Message("ControlGroupSet".Translate(selector.SelectedObjects.Count.ToString(), groupKey.ToString().Last()), MessageTypeDefOf.NeutralEvent, false);
-                        }
-                    }
+                    foreach (var obj in selector.SelectedObjects)
+                        ControlGroups.AddThing(groupID, obj);
+
+                    if (ControlGroups.settings.showMessages)
+                        Messages.Message("ControlGroupSet".Translate(selector.SelectedObjects.Count.ToString(), groupID), MessageTypeDefOf.NeutralEvent, false);
                 }
                 // Add currently selected units to the numpad control group
-                else if (Input.GetKey(KeyCode.LeftAlt))
+                else if (leftAlt && selector.SelectedObjects.Count > 0)
                 {
-                    if (selector.SelectedObjects.Count > 0)
-                    {
-                        if (ControlGroups.groups[groupKey] == null)
-                            ControlGroups.groups[groupKey] = new List<object>();
+                    if (!ControlGroups.groups.ContainsKey(groupID) || ControlGroups.groups[groupID] == null)
+                        ControlGroups.groups[groupID] = new List<Thing>();
 
-                        ControlGroups.groups[groupKey].AddRange(selector.SelectedObjects.Except(ControlGroups.groups[groupKey]));
+                    foreach (var obj in selector.SelectedObjects)
+                        ControlGroups.AddThing(groupID, obj);
 
-                        if (ControlGroups.settings.showMessages)
-                        {
-                            Messages.Message("ControlGroupAdd".Translate(selector.SelectedObjects.Count.ToString(), groupKey.ToString().Last()), MessageTypeDefOf.NeutralEvent, false);
-                        }
-                    }
+                    if (ControlGroups.settings.showMessages)
+                        Messages.Message("ControlGroupAdd".Translate(selector.SelectedObjects.Count.ToString(), groupID), MessageTypeDefOf.NeutralEvent, false);
                 }
                 // Selected a control group
-                else
+                else if (!leftControl && !leftAlt && ControlGroups.groups.ContainsKey(groupID) && ControlGroups.groups[groupID].Count > 0)
                 {
-                    if (ControlGroups.groups.ContainsKey(groupKey) && ControlGroups.groups[groupKey].Count > 0)
+                    selector.ClearSelection();
+
+                    Log.Message("[ControlGroups] selecting with key: " + groupID.ToString());
+
+                    foreach (Thing thing in ControlGroups.groups[groupID])
                     {
-                        selector.ClearSelection();
-
-                        ControlGroups.groups[groupKey].RemoveAll(item => !ControlGroups.ValidObject(item));
-
-                        foreach (object obj in ControlGroups.groups[groupKey])
-                        {
-                            selector.Select(obj);
-                        }
+                        Log.Message(thing.ToString());
+                        selector.Select(thing);
                     }
                 }
             }

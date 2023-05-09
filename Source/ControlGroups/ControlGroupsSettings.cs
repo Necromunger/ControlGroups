@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using Verse;
 
 
@@ -7,6 +8,20 @@ namespace ControlGroups
     public class ControlGroupsSettings : ModSettings
     {
         public bool showMessages = true;
+
+        public static Dictionary<int, KeyCode> groupKeys = new Dictionary<int, KeyCode>
+        {
+            {0, KeyCode.Keypad0},
+            {1, KeyCode.Keypad1},
+            {2, KeyCode.Keypad2},
+            {3, KeyCode.Keypad3},
+            {4, KeyCode.Keypad4},
+            {5, KeyCode.Keypad5},
+            {6, KeyCode.Keypad6},
+            {7, KeyCode.Keypad7},
+            {8, KeyCode.Keypad8},
+            {9, KeyCode.Keypad9}
+        };
 
         public override void ExposeData()
         {
