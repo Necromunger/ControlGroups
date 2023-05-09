@@ -84,7 +84,7 @@ namespace ControlGroups
 
         static ControlGroupsLoader()
         {
-            var harmony = new Harmony("com.necromunger.selectionmanager");
+            var harmony = new Harmony("Necromunger.Administrator.ControlGroups");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
 
             if (ControlGroups.groups == null)
@@ -97,49 +97,7 @@ namespace ControlGroups
             private static void Postfix(Selector __instance, object obj, bool playSound = true, bool forceDesignatorDeselect = true)
             {
                 if (selector == null)
-                {
                     selector = __instance;
-                }
-
-                // Select more of selected type feature
-                if (Input.GetKey(KeyCode.LeftControl))
-                {
-                    if (__instance.SelectedObjects.Count == 1)
-                    {
-                        sample = __instance.SelectedObjects[0];
-                        return;
-                    }
-
-                    if (sample != null && __instance.SelectedObjects.Count > 1)
-                    {
-                        var objectsToRemove = new List<object>();
-                        foreach (object selectedObject in __instance.SelectedObjects)
-                        {
-                            if (sample.GetType() != selectedObject.GetType())
-                            {
-                                objectsToRemove.Add(selectedObject);
-                            }
-                        }
-
-                        //todo, clear all and then select the ones that matched type
-                        foreach (object removingObject in objectsToRemove)
-                        {
-                            selector.Deselect(removingObject);
-                        }
-                    }
-                }
-            }
-        }
-
-        [HarmonyPatch(typeof(Selector), "Deselect", new Type[] { typeof(object) })]
-        class Patch_Selector_Deselect
-        {
-            private static void Postfix(Selector __instance, object obj)
-            {
-                if (selector == null)
-                {
-                    selector = __instance;
-                }
             }
         }
 
@@ -164,11 +122,8 @@ namespace ControlGroups
                 {
                     ControlGroups.groups[groupID] = new List<Thing>();
 
-                    ControlGroups.Log("Setting 'Things' to group:");
-
                     foreach (var obj in selector.SelectedObjects)
                     {
-                        ControlGroups.Log("- " + obj.ToString());
                         ControlGroups.AddThing(groupID, obj);
                     }
 
@@ -181,11 +136,8 @@ namespace ControlGroups
                     if (!ControlGroups.groups.ContainsKey(groupID) || ControlGroups.groups[groupID] == null)
                         ControlGroups.groups[groupID] = new List<Thing>();
 
-                    ControlGroups.Log("Adding 'Things' to group:");
-
                     foreach (var obj in selector.SelectedObjects)
                     {
-                        ControlGroups.Log("- " + obj.ToString());
                         ControlGroups.AddThing(groupID, obj);
                     }
 
@@ -197,11 +149,8 @@ namespace ControlGroups
                 {
                     selector.ClearSelection();
 
-                    ControlGroups.Log("Selecting group: " + groupID.ToString());
-
                     foreach (Thing thing in ControlGroups.groups[groupID])
                     {
-                        ControlGroups.Log("- " + thing.ToString());
                         selector.Select(thing);
                     }
                 }
