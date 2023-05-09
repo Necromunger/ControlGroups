@@ -13,14 +13,15 @@ namespace ControlGroups
         {
             Log.Message("[ControlGroups] Expose Data");
 
+            if (ControlGroups.groups == null)
+                ControlGroups.groups = new Dictionary<int, List<Thing>>();
+
             foreach (KeyValuePair<int, KeyCode> groupKey in ControlGroupsSettings.groupKeys)
             {
-                if (ControlGroups.groups == null)
-                    ControlGroups.groups = new Dictionary<int, List<Thing>>();
+                if (!ControlGroups.groups.ContainsKey(groupKey.Key))
+                    ControlGroups.groups[groupKey.Key] = new List<Thing>();
 
                 var group = ControlGroups.groups[groupKey.Key];
-                if (group == null)
-                    group = new List<Thing>();
 
                 Scribe_Collections.Look(ref group, "Group" + groupKey.Key, LookMode.Reference);
 

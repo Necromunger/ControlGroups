@@ -209,7 +209,6 @@ namespace ControlGroups
 
                     foreach (Thing thing in ControlGroups.groups[groupID])
                     {
-                        Log.Message(thing.ToString());
                         selector.Select(thing);
                     }
                 }
