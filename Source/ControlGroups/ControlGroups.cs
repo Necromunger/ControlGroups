@@ -20,6 +20,8 @@ namespace ControlGroups
 
         public static Dictionary<int, List<Thing>> groups;
 
+        public static bool isLogging = true;
+
         public ControlGroups(ModContentPack content) : base(content)
         {
             settings = GetSettings<ControlGroupsSettings>();
@@ -41,7 +43,7 @@ namespace ControlGroups
         {
             foreach (KeyValuePair<int, KeyCode> groupKey in ControlGroupsSettings.groupKeys)
             {
-                if (Input.GetKey(groupKey.Value))
+                if (Input.GetKeyDown(groupKey.Value))
                     return groupKey.Key;
             }
 
@@ -65,19 +67,10 @@ namespace ControlGroups
             groups[groupID].Add(thing);
         }
 
-        public static bool ValidThing(object obj)
+        public static void Log(string message)
         {
-            if (obj == null)
-            {
-                return false;
-            }
-
-            if (!(obj is Thing thing) || (thing != null && thing.Destroyed))
-            {
-                return false;
-            }
-
-            return true;
+            if (isLogging)
+                Verse.Log.Message("[ControlGroups] " + message);
         }
     }
 
@@ -85,8 +78,6 @@ namespace ControlGroups
     public static class ControlGroupsLoader
     {
         static Selector selector;
-
-        static int? currentGroup;
 
         // Selection from samples
         static object sample;
@@ -96,7 +87,8 @@ namespace ControlGroups
             var harmony = new Harmony("com.necromunger.selectionmanager");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-            ControlGroups.groups = new Dictionary<int, List<Thing>>();
+            if (ControlGroups.groups == null)
+                ControlGroups.groups = new Dictionary<int, List<Thing>>();
         }
 
         [HarmonyPatch(typeof(Selector), "Select", new Type[] { typeof(object), typeof(bool), typeof(bool) })]
@@ -159,20 +151,10 @@ namespace ControlGroups
                 if (selector == null)
                     return;
 
-                // If user presses or releases button after binding, reset so that they may then select given group
-                if (Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyUp(KeyCode.LeftControl) || Input.GetKeyUp(KeyCode.LeftAlt))
-                     currentGroup = null;
-
                 // check if any of the group keys were pressed
                 int groupID = ControlGroups.GroupKeyPressed();
                 if (groupID < 0)
                     return;
-
-                // abort if not selecting a new group
-                if (currentGroup == groupID)
-                    return;
-
-                currentGroup = groupID;
 
                 var leftControl = Input.GetKey(KeyCode.LeftControl);
                 var leftAlt = Input.GetKey(KeyCode.LeftAlt);
@@ -182,8 +164,13 @@ namespace ControlGroups
                 {
                     ControlGroups.groups[groupID] = new List<Thing>();
 
+                    ControlGroups.Log("Setting 'Things' to group:");
+
                     foreach (var obj in selector.SelectedObjects)
+                    {
+                        ControlGroups.Log("- " + obj.ToString());
                         ControlGroups.AddThing(groupID, obj);
+                    }
 
                     if (ControlGroups.settings.showMessages)
                         Messages.Message("ControlGroupSet".Translate(selector.SelectedObjects.Count.ToString(), groupID), MessageTypeDefOf.NeutralEvent, false);
@@ -194,8 +181,13 @@ namespace ControlGroups
                     if (!ControlGroups.groups.ContainsKey(groupID) || ControlGroups.groups[groupID] == null)
                         ControlGroups.groups[groupID] = new List<Thing>();
 
+                    ControlGroups.Log("Adding 'Things' to group:");
+
                     foreach (var obj in selector.SelectedObjects)
+                    {
+                        ControlGroups.Log("- " + obj.ToString());
                         ControlGroups.AddThing(groupID, obj);
+                    }
 
                     if (ControlGroups.settings.showMessages)
                         Messages.Message("ControlGroupAdd".Translate(selector.SelectedObjects.Count.ToString(), groupID), MessageTypeDefOf.NeutralEvent, false);
@@ -205,10 +197,11 @@ namespace ControlGroups
                 {
                     selector.ClearSelection();
 
-                    Log.Message("[ControlGroups] selecting with key: " + groupID.ToString());
+                    ControlGroups.Log("Selecting group: " + groupID.ToString());
 
                     foreach (Thing thing in ControlGroups.groups[groupID])
                     {
+                        ControlGroups.Log("- " + thing.ToString());
                         selector.Select(thing);
                     }
                 }
