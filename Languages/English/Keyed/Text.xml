@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+	<SettingShowMessages>Show messages when assigning groups</SettingShowMessages>
+	<ControlGroupSet>Set {0} Object(s) to Control Group {1}</ControlGroupSet>
+	<ControlGroupAdd>Added {0} Object(s) to Control Group {1}</ControlGroupAdd>
+</LanguageData>
